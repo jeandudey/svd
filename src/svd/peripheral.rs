@@ -18,49 +18,165 @@ use crate::svd::{
     registerproperties::RegisterProperties,
 };
 
+use crate::Build;
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Debug)]
 pub struct Peripheral {
+    /// The string identifies the peripheral. Peripheral names are required to be unique for a device
     pub name: String,
-    pub version: Option<String>,
-    pub display_name: Option<String>,
-    pub group_name: Option<String>,
-    pub description: Option<String>,
+
+    /// Lowest address reserved or used by the peripheral
     pub base_address: u32,
+
+    /// The string specifies the version of this peripheral description
+    pub version: Option<String>,
+
+    pub display_name: Option<String>,
+
+    pub group_name: Option<String>,
+
+    /// The string provides an overview of the purpose and functionality of the peripheral
+    pub description: Option<String>,
+
+    /// Specify an address range uniquely mapped to this peripheral
     pub address_block: Option<AddressBlock>,
+
+    /// A peripheral can have multiple associated interrupts
     pub interrupt: Vec<Interrupt>,
+
     pub default_register_properties: RegisterProperties,
+
+    /// Group to enclose register definitions.
     /// `None` indicates that the `<registers>` node is not present
     pub registers: Option<Vec<RegisterCluster>>,
+
+    /// Specify the peripheral name from which to inherit data. Elements specified subsequently override inherited values
     pub derived_from: Option<String>,
+
     // Reserve the right to add more fields to this struct
     _extensible: (),
 }
 
-impl Parse for Peripheral {
-    type Object = Peripheral;
-    type Error = anyhow::Error;
+impl Build for Peripheral {
+    type Builder = PeripheralBuilder;
+}
 
-    fn parse(tree: &Element) -> Result<Peripheral> {
-        if tree.name != "peripheral" {
-            return Err(SVDError::NotExpectedTag(tree.clone(), "peripheral".to_string()).into());
-        }
-        let name = tree.get_child_text("name")?;
-        Peripheral::_parse(tree, name.clone()).with_context(|| format!("In peripheral `{}`", name))
+#[derive(Default)]
+pub struct PeripheralBuilder {
+    name: Option<String>,
+    base_address: Option<u32>,
+    version: Option<String>,
+    display_name: Option<String>,
+    group_name: Option<String>,
+    description: Option<String>,
+    address_block: Option<AddressBlock>,
+    interrupt: Vec<Interrupt>,
+    default_register_properties: RegisterProperties,
+    registers: Option<Vec<RegisterCluster>>,
+    derived_from: Option<String>,
+}
+
+impl PeripheralBuilder {
+    pub fn name(mut self, value: String) -> Self {
+        self.name = Some(value);
+        self
+    }
+    pub fn base_address(mut self, value: u32) -> Self {
+        self.base_address = Some(value);
+        self
+    }
+    pub fn version(mut self, value: Option<String>) -> Self {
+        self.version = value;
+        self
+    }
+    pub fn display_name(mut self, value: Option<String>) -> Self {
+        self.display_name = value;
+        self
+    }
+    pub fn group_name(mut self, value: Option<String>) -> Self {
+        self.group_name = value;
+        self
+    }
+    pub fn description(mut self, value: Option<String>) -> Self {
+        self.description = value;
+        self
+    }
+    pub fn address_block(mut self, value: Option<AddressBlock>) -> Self {
+        self.address_block = value;
+        self
+    }
+    pub fn interrupt(mut self, value: Vec<Interrupt>) -> Self {
+        self.interrupt = value;
+        self
+    }
+    pub fn default_register_properties(mut self, value: RegisterProperties) -> Self {
+        self.default_register_properties = value;
+        self
+    }
+    pub fn registers(mut self, value: Option<Vec<RegisterCluster>>) -> Self {
+        self.registers = value;
+        self
+    }
+    pub fn derived_from(mut self, value: Option<String>) -> Self {
+        self.derived_from = value;
+        self
+    }
+    pub fn build(self) -> Result<Peripheral> {
+        (Peripheral {
+            name: self
+                .name
+                .ok_or_else(|| BuildError::Uninitialized("name".to_string()))?,
+            base_address: self
+                .base_address
+                .ok_or_else(|| BuildError::Uninitialized("base_address".to_string()))?,
+            version: self.version,
+            display_name: self.display_name,
+            group_name: self.group_name,
+            description: self.description,
+            address_block: self.address_block,
+            interrupt: self.interrupt,
+            default_register_properties: self.default_register_properties,
+            registers: self.registers,
+            derived_from: self.derived_from,
+            _extensible: (),
+        })
+        .validate()
     }
 }
 
 impl Peripheral {
-    fn _parse(tree: &Element, name: String) -> Result<Peripheral> {
-        Ok(Peripheral {
-            name,
-            version: tree.get_child_text_opt("version")?,
-            display_name: tree.get_child_text_opt("displayName")?,
-            group_name: tree.get_child_text_opt("groupName")?,
-            description: tree.get_child_text_opt("description")?,
-            base_address: tree.get_child_u32("baseAddress")?,
-            address_block: parse::optional::<AddressBlock>("addressBlock", tree)?,
-            interrupt: {
+    fn validate(self) -> Result<Self> {
+        // TODO
+        check_name(&self.name)?;
+        Ok(self)
+    }
+}
+
+impl Parse for Peripheral {
+    type Object = Self;
+    type Error = anyhow::Error;
+
+    fn parse(tree: &Element) -> Result<Self> {
+        if tree.name != "peripheral" {
+            return Err(ParseError::NotExpectedTag(tree.clone(), "peripheral".to_string()).into());
+        }
+        let name = tree.get_child_text("name")?;
+        Self::_parse(tree, name.clone()).with_context(|| format!("In peripheral `{}`", name))
+    }
+}
+
+impl Peripheral {
+    fn _parse(tree: &Element, name: String) -> Result<Self> {
+        PeripheralBuilder::default()
+            .name(name)
+            .version(tree.get_child_text_opt("version")?)
+            .display_name(tree.get_child_text_opt("displayName")?)
+            .group_name(tree.get_child_text_opt("groupName")?)
+            .description(tree.get_child_text_opt("description")?)
+            .base_address(tree.get_child_u32("baseAddress")?)
+            .address_block(parse::optional::<AddressBlock>("addressBlock", tree)?)
+            .interrupt({
                 let interrupt: Result<Vec<_>, _> = tree
                     .children
                     .iter()
@@ -71,9 +187,9 @@ impl Peripheral {
                     })
                     .collect();
                 interrupt?
-            },
-            default_register_properties: RegisterProperties::parse(tree)?,
-            registers: if let Some(registers) = tree.get_child("registers") {
+            })
+            .default_register_properties(RegisterProperties::parse(tree)?)
+            .registers(if let Some(registers) = tree.get_child("registers") {
                 let rs: Result<Vec<_>, _> = registers
                     .children
                     .iter()
@@ -82,10 +198,9 @@ impl Peripheral {
                 Some(rs?)
             } else {
                 None
-            },
-            derived_from: tree.attributes.get("derivedFrom").map(|s| s.to_owned()),
-            _extensible: (),
-        })
+            })
+            .derived_from(tree.attributes.get("derivedFrom").map(|s| s.to_owned()))
+            .build()
     }
 }
 

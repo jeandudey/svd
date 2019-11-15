@@ -30,10 +30,10 @@ impl Deref for Field {
 }
 
 impl Parse for Field {
-    type Object = Field;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<Field> {
+    fn parse(tree: &Element) -> Result<Self> {
         assert_eq!(tree.name, "field");
 
         let info = FieldInfo::parse(tree)?;

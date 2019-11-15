@@ -16,28 +16,28 @@ pub enum RegisterCluster {
 }
 
 impl From<Register> for RegisterCluster {
-    fn from(reg: Register) -> RegisterCluster {
+    fn from(reg: Register) -> Self {
         RegisterCluster::Register(reg)
     }
 }
 
 impl From<Cluster> for RegisterCluster {
-    fn from(cluser: Cluster) -> RegisterCluster {
+    fn from(cluser: Cluster) -> Self {
         RegisterCluster::Cluster(cluser)
     }
 }
 
 impl Parse for RegisterCluster {
-    type Object = RegisterCluster;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<RegisterCluster> {
+    fn parse(tree: &Element) -> Result<Self> {
         if tree.name == "register" {
             Ok(RegisterCluster::Register(Register::parse(tree)?))
         } else if tree.name == "cluster" {
             Ok(RegisterCluster::Cluster(Cluster::parse(tree)?))
         } else {
-            Err(SVDError::InvalidRegisterCluster(tree.clone(), tree.name.clone()).into())
+            Err(RegisterClusterError::Invalid(tree.clone(), tree.name.clone()).into())
         }
     }
 }

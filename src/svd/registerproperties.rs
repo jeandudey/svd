@@ -14,28 +14,35 @@ use crate::svd::access::Access;
 
 /// Register default properties
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RegisterProperties {
+    /// Default bit-width of any register
     pub size: Option<u32>,
+
+    /// Default value for all registers at RESET
     pub reset_value: Option<u32>,
+
+    /// Define which register bits have a defined reset value
     pub reset_mask: Option<u32>,
+
+    /// Default access rights for all registers
     pub access: Option<Access>,
+
     // Reserve the right to add more fields to this struct
     _extensible: (),
 }
 
 impl Parse for RegisterProperties {
-    type Object = RegisterProperties;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<RegisterProperties> {
-        Ok(RegisterProperties {
-            size: parse::optional::<u32>("size", tree)?,
-            reset_value: parse::optional::<u32>("resetValue", tree)?,
-            reset_mask: parse::optional::<u32>("resetMask", tree)?,
-            access: parse::optional::<Access>("access", tree)?,
-            _extensible: (),
-        })
+    fn parse(tree: &Element) -> Result<Self> {
+        let mut p = RegisterProperties::default();
+        p.size = parse::optional::<u32>("size", tree)?;
+        p.reset_value = parse::optional::<u32>("resetValue", tree)?;
+        p.reset_mask = parse::optional::<u32>("resetMask", tree)?;
+        p.access = parse::optional::<Access>("access", tree)?;
+        Ok(p)
     }
 }
 
@@ -84,13 +91,11 @@ mod tests {
         ",
         );
 
-        let expected = RegisterProperties {
-            size: Some(0xaabbccdd),
-            reset_value: Some(0x11223344),
-            reset_mask: Some(0x00000000),
-            access: Some(Access::ReadOnly),
-            _extensible: (),
-        };
+        let mut expected = RegisterProperties::default();
+        expected.size = Some(0xaabbccdd);
+        expected.reset_value = Some(0x11223344);
+        expected.reset_mask = Some(0x00000000);
+        expected.access = Some(Access::ReadOnly);
 
         let tree1 = Element::parse(example.as_bytes()).unwrap();
 

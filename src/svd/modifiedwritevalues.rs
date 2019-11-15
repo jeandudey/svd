@@ -24,10 +24,10 @@ pub enum ModifiedWriteValues {
 }
 
 impl Parse for ModifiedWriteValues {
-    type Object = ModifiedWriteValues;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<ModifiedWriteValues> {
+    fn parse(tree: &Element) -> Result<Self> {
         use self::ModifiedWriteValues::*;
         let text = tree.get_text()?;
 
@@ -41,7 +41,7 @@ impl Parse for ModifiedWriteValues {
             "clear" => Clear,
             "set" => Set,
             "modify" => Modify,
-            s => return Err(SVDError::InvalidModifiedWriteValues(tree.clone(), s.into()).into()),
+            s => return Err(ModifiedWriteValuesError::Invalid(tree.clone(), s.into()).into()),
         })
     }
 }

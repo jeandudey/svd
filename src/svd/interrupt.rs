@@ -15,14 +15,19 @@ use crate::types::Parse;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Interrupt {
+    /// The string represents the interrupt name
     pub name: String,
+
+    /// The string describes the interrupt
     pub description: Option<String>,
+
+    /// Represents the enumeration index value associated to the interrupt
     pub value: u32,
 }
 
 impl Interrupt {
-    fn _parse(tree: &Element, name: String) -> Result<Interrupt> {
-        Ok(Interrupt {
+    fn _parse(tree: &Element, name: String) -> Result<Self> {
+        Ok(Self {
             name,
             description: tree.get_child_text_opt("description")?,
             value: tree.get_child_u32("value")?,
@@ -31,15 +36,15 @@ impl Interrupt {
 }
 
 impl Parse for Interrupt {
-    type Object = Interrupt;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<Interrupt> {
+    fn parse(tree: &Element) -> Result<Self> {
         if tree.name != "interrupt" {
-            return Err(SVDError::NotExpectedTag(tree.clone(), "interrupt".to_string()).into());
+            return Err(ParseError::NotExpectedTag(tree.clone(), "interrupt".to_string()).into());
         }
         let name = tree.get_child_text("name")?;
-        Interrupt::_parse(tree, name.clone()).with_context(|| format!("In interrupt `{}`", name))
+        Self::_parse(tree, name.clone()).with_context(|| format!("In interrupt `{}`", name))
     }
 }
 

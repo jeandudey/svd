@@ -27,10 +27,10 @@ pub struct WriteConstraintRange {
 }
 
 impl Parse for WriteConstraint {
-    type Object = WriteConstraint;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<WriteConstraint> {
+    fn parse(tree: &Element) -> Result<Self> {
         if tree.children.len() == 1 {
             let field = &tree.children[0].name;
             // Write constraint can only be one of the following
@@ -44,10 +44,10 @@ impl Parse for WriteConstraint {
                 "range" => Ok(WriteConstraint::Range(WriteConstraintRange::parse(
                     tree.get_child_elem(field.as_ref())?,
                 )?)),
-                _ => Err(SVDError::UnknownWriteConstraint(tree.clone()).into()),
+                _ => Err(WriteConstraintError::Unknown(tree.clone()).into()),
             }
         } else {
-            Err(SVDError::MoreThanOneWriteConstraint(tree.clone()).into())
+            Err(WriteConstraintError::MoreThanOne(tree.clone()).into())
         }
     }
 }
@@ -78,11 +78,11 @@ impl Encode for WriteConstraint {
 }
 
 impl Parse for WriteConstraintRange {
-    type Object = WriteConstraintRange;
+    type Object = Self;
     type Error = anyhow::Error;
 
-    fn parse(tree: &Element) -> Result<WriteConstraintRange> {
-        Ok(WriteConstraintRange {
+    fn parse(tree: &Element) -> Result<Self> {
+        Ok(Self {
             min: tree.get_child_u32("minimum")?,
             max: tree.get_child_u32("maximum")?,
         })
